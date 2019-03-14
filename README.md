@@ -6,6 +6,8 @@ This project aims to replicate the feeling of passage into another experience of
 
 ## Materials.
 Kinect, Processing, MadMapper, projectors, laptop, relay board, solenoids, trees, rope, speakers
+https://processing.org/
+https://github.com/processing/processing/
 
 ## Requirements.
 --
