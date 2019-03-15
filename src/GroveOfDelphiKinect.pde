@@ -1,45 +1,42 @@
 import SimpleOpenNI.*;
 import processing.serial.*;
 
-//Generate a SimpleOpenNI object
+// Generate a SimpleOpenNI object
 SimpleOpenNI kinect;
 
+/*
+ * Relay variables.
+ */
 
-// START RELAY STUFF ----------------------------------------
 // Create object from Serial class
-Serial myPort;  // Create object from Serial class
-
+Serial myPort;
 int NUM_SOLENOIDS = 27;
+int inByte = -1; // Incoming serial data
 
-int inByte = -1;    // Incoming serial data
+char[] relayChannel = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 
+'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 
+'R', 'S', 'T', 'U', 'V'};
 
-char[] relayChannel = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'};
-
-
-int lf = 10;    // Linefeed in ASCII
+int lf = 10; // Linefeed in ASCII
 String myString = null;
 
-//JODY: change this to match the switch case index of the setup you want to test
-int sketchIdeaNum = 0;
-
-// time variable for time based effects
+// Time variable for time based effects.
 int t = 0;
-// END RELAY STUFF ----------------------------------------
 
-
-
-
-//Vectors used to calculate the center of the mass
+/*
+ * Kinect variables.
+ */
+// Vectors used to calculate the center of the mass.
 PVector com = new PVector();
 PVector com2d = new PVector();
 
-//Up
+// Up
 float LeftshoulderAngle = 0;
 float LeftelbowAngle = 0;
 float RightshoulderAngle = 0;
 float RightelbowAngle = 0;
 
-//Legs
+// Legs
 float RightLegAngle = 0;
 float LeftLegAngle = 0;
 
@@ -50,114 +47,104 @@ void settings() {
 void setup() {
   kinect = new SimpleOpenNI(this);
   kinect.enableDepth();
-  //kinect.enableIR();
-  kinect.enableUser();// because of the version this change
-  //size(640, 480);
+  kinect.enableUser();
   fill(255, 0, 0);
-  //size(kinect.depthWidth()+kinect.irWidth(), kinect.depthHeight());
   kinect.setMirror(false);
-  //Open the serial port for Arduino
-  //String portName = Serial.list()[2]; //change the 0 to a 1 or 2 etc. to match your port
-  //myPort = new Serial(this, portName, 115200);
 
 
-  // RELAY SETUP STUFF ----------------------------------------
-  //size(400, 300);
-  // create a font with the third font available to the system:
-  //PFont myFont = createFont(PFont.list()[2], 14);
-  //textFont(myFont);
+  /*
+   * Relay setup.
+   */
 
-  // List all the available serial ports:
+  // List all the available serial ports.
   printArray(Serial.list());
 
-  // I know that the first port in the serial list on my mac
-  // is always my  FTDI adaptor, so I open Serial.list()[0].
-  // In Windows, this usually opens COM1.
-  // Open whatever port is the one you're using.
-  //JODY: You'll likely have to change this
-  //      Output is printed to console
-  //      Just select the number most like 1 or 4 below
-  //      and put that in String portName = Serial.list()[HERE];
-  //[0] "/dev/cu.Bluetooth-Incoming-Port"
-  //[1] "/dev/cu.usbmodem14111"
-  //[2] "/dev/cu.usbserial-FT1JHNQE"
-  //[3] "/dev/tty.Bluetooth-Incoming-Port"
-  //[4] "/dev/tty.usbmodem14111"
-  //[5] "/dev/tty.usbserial-FT1JHNQE
+  /*
+   * The following section selects the output on your computer to the relay
+   * board.
+   *
+   * I know that the first port in the serial list on my mac is always my  FTDI 
+   * adaptor, so I open Serial.list()[0]. In Windows, this usually opens COM1.
+   * Open whatever port is the one you're using.
+   *
+   * JODY: You'll likely have to change this. Output is printed to console. Just
+   * select the number most like 1 or 4 below.
+   *
+   * ex:
+   * [0] "/dev/cu.Bluetooth-Incoming-Port"
+   * [1] "/dev/cu.usbmodem14111"
+   * [2] "/dev/cu.usbserial-FT1JHNQE"
+   * [3] "/dev/tty.Bluetooth-Incoming-Port"
+   * [4] "/dev/tty.usbmodem14111"
+   * [5] "/dev/tty.usbserial-FT1JHNQE
+   */
   String portName = Serial.list()[1];
   myPort = new Serial(this, portName, 9600);
   myPort.clear();
-  // Throw out the first reading, in case we started reading 
-  // in the middle of a string from the sender.
+
+  /*
+   * Throw out the first reading, in case we started reading in the middle of a 
+   * string from the sender.
+   */
   myString = myPort.readStringUntil(lf);
   myString = null;
-  // END RELAY SETUP STUFF ----------------------------------------
 }
 
 void draw() {
   kinect.update();
-  //image(kinect.depthImage(), 0, 0);
-  //image(kinect.irImage(),kinect.depthWidth(),0);
   image(kinect.userImage(), 0, 0);
   IntVector userList = new IntVector();
   kinect.getUsers(userList);
 
+  /*
+   * JODY: This is what connects the Kinect to the relays this is a hack for 
+   * testing: I'm overwriting how many people are present to test all the 
+   * conditons 0-9
+   *
+   * Basic idea:
+   * More people equal more sound density, while 0 people isn't too 
+   * silent. Convert number of people into a delay. More people equal less delay
+   * which translates to more sound density.
+   */
 
+  long numberOfPeople = 5; 
+  //long numberOfPeople = userList.size();
 
-  // ----------------------------------------------------------------------------
-  // ------------------- JODY: This is what connects the Kinect to the relays
-  // this is a hack for testing: I'm overwriting how many people are present to test all the conditons 0-9
-  long numberOfPeople = 5; // comment this out when you want Kinect connection and uncomment "long numberOfPeople = userList.size();" on the next line
-  //long numberOfPeople = userList.size(); 
-
-  // basic idea: more people -> more sound density, while 0 people isn't too silent
-  // convert number of people into a delay
-  // more people --> less delay : more sound density
-
-
-  // WARNING: lower delays get more and more risky AKA blowing power supplies / lots of current
-  //          Make sure to feel the 5V power supplies to make sure they aren't over heating.
-  //          You're dealing with a lot of power so bring the system up parts at a time:
-  //          1 board of 9 (run it, check power supply heat etc.), then 2 boards (more checks), then 3 (many more checks over seconds and minutes)
+  /*
+   * WARNING:
+   * lower delays get more and more risky AKA blowing power supplies lots of 
+   * current. You're dealing with a lot of power so bring the system up parts at
+   * a time.
+   *
+   * 1 board of 9 (run it, check power supply heat etc.),
+   * then 2 boards (more checks),
+   * then 3 (many more checks over seconds and minutes)
+   */
   float delayWith0People = 1200.0;
-  float delayWith9People = 150.0; // ACHTUNG!  DANGER! DO NOT MAKE THIS MUCH SMALLER
+  float delayWith9People = 150.0; // DANGER! DO NOT MAKE THIS MUCH SMALLER
   float maxNumPeople = 9.0;
 
   float delayWindow = delayWith0People - (constrain((float)numberOfPeople, 0, maxNumPeople)/maxNumPeople)*(delayWith0People - delayWith9People);
 
-  // this is the function that triggers all the relays
+  // This is the function that triggers all the relays.
   variableDensityRandom((int)delayWindow);
 
-  // for debugging in the console
-  println("numberOfPeople= " + numberOfPeople + ", delayWindow= " + delayWindow);  
-  // ------------------- END of Kinect -> Relay Connection section -------------------
-  // ----------------------------------------------------------------------------
+  // For debugging in the console
+  println("numberOfPeople= " + numberOfPeople + ", delayWindow= " + delayWindow);
 
-
-
-
-  // ------------------- START Kinect Drawing Section -------------------
+  /*
+   * Kinect drawing section.
+   */
   if (userList.size() > 0) {
     int userId = userList.get(0);
-    //If we detect one user we have to draw it
-    if ( kinect.isTrackingSkeleton(userId)) {
-      //DrawSkeleton
-      //drawSkeleton(userId);
-      //drawUpAngles
-      //ArmsAngle(userId);
-      //Draw the user Mass
+
+    //If we detect one user we have to draw it.
+    if (kinect.isTrackingSkeleton(userId)) {
       MassUser(userId);
-      //AngleLeg
       LegsAngle(userId);
     }
   }
-  // ------------------- END Kinect Drawing Section -------------------
 }
-
-
-
-
-
 
 //---------------------Density Feeling(low, medium, high)---------------------
 // TRACK 0
@@ -275,7 +262,6 @@ void waveLFOSineWaveRandom() {
   sineCalc("Wave LFO Sine Wave Random", lfoFreq, t, delayMax, i);
 
   t++;
-  //t = millis();
 }
 
 
@@ -285,7 +271,6 @@ void waveLFOSineWaveRandom() {
 // Period = 1/0.01Hz = 100 seconds ~ 1.5 min
 void variableDensityRandom(int delayMax) {
   float lfoFreq = 0.1;
-
 
   int i = int(random(NUM_SOLENOIDS));
   triggerSolenoid(i);
@@ -306,22 +291,12 @@ void sineCalc(String title, float lfoFreq, float t, float delayMax, int i) {
   println(title + ": t= " + t + ", solenoid= " + i + ", delayTime= " + delayTime + ", delayTimeF= " + delayTimeFloat + ", sine= " + sine);
 }
 
-/*
-void serialEvent(Serial myPort) {
- inByte = myPort.read();
- }
- */
-
-
 void setSolenoidOn(int index) {
-  //myPort.write("\r");
   myPort.write("relay on " + relayChannel[index] + "\r");
 }
 
 void setSolenoidOff(int index) {
-  //myPort.write("\r");               
   myPort.write("relay off " + relayChannel[index] + "\r");
-  //println("relay off " + relayChannel[index] + "\r");
 }
 
 void triggerSolenoid(int index) {
@@ -330,20 +305,9 @@ void triggerSolenoid(int index) {
   setSolenoidOff(index);
 }
 
-/*
-NEEEEEEVER USE THIS!!!!!!!!!!!!!
- This is the worst case for power draw and could be dangerous
- void allOn(){
- myPort.write("\r");               
- myPort.write("relay writeall ffffffff\r");  
- }
- */
 void allOff() {
-  //myPort.write("\r");               
   myPort.write("relay writeall 00000000\r");
 }
-// ----------------- END OF RELAY FUNCTIONS -----------------
-
 
 
 
